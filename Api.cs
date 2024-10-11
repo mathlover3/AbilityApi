@@ -20,7 +20,7 @@ namespace AbilityApi
             public Vector2 TotalSize = new();
         }
 
-        public static Dictionary<Texture2D, AbilityTextureMetaData> CustomAbilityTexstures = new();
+        public static List<Texture2D> CustomAbilityTexstures = new();
         public static List<NamedSprite> Sprites = new();
         public static AbilityGrid abilityGrid;
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
@@ -52,14 +52,12 @@ namespace AbilityApi
         }
         /// <summary>
         /// Adds your NamedSprites to the games many NamedSpriteLists that need them.
-        /// Sprite is the sprite alits with your sprite and the backround
+        /// Sprite is the NamedSprite for your ability
         /// if theres already a ability with the given name it errors out.
         /// if the assosated gameobjects name isnt the same as the ability name it will be renamed. dont use the same assosated gameobject for multiple abilitys.
-        /// Json is the json thats generated with texsture packer. this is needed so we know where your ability sprite is and where the backround is.
-        /// BackroundName is the name of the file that the backround was in when packing it. normaly its BaseCircle.png unless you renamed it.
         /// </summary>
         /// <returns></returns>
-        public static void RegisterNamedSprites(NamedSprite Sprite, string json, string BackroundName)
+        public static void RegisterNamedSprites(NamedSprite Sprite)
         {
             foreach (NamedSprite sprite in Sprites)
             {
@@ -68,68 +66,101 @@ namespace AbilityApi
                     throw new Exception($"ERROR: ABILITY WITH NAME {Sprite.name} ALREADY EXSITS! NOT CREATING ABILITY!");
                 }
             }
-            var dict = MiniJSON.Json.Deserialize(json) as Dictionary<string, object>;
-            if (dict == null)
-            {
-                throw new InvalidDataException("ERROR: INVALID JSON");
-            }
-            Vector2 TotalSize = new();
-            try
-            {
-                TotalSize.x = (float)Convert.ToDouble(((Dictionary<string, object>)((Dictionary<string, object>)dict["meta"])["size"])["w"]);
-                TotalSize.y = (float)Convert.ToDouble(((Dictionary<string, object>)((Dictionary<string, object>)dict["meta"])["size"])["h"]);
-                dict = dict["frames"] as Dictionary<string, object>;
-            }
-            catch (Exception e)
-            {
-                throw new InvalidDataException($"ok you know what im not gonna make a difrent error for ever difrent way a json can be invalid. this json is invalid err {e}");
-            }
-            if (!dict.ContainsKey(BackroundName))
-            {
-                throw new InvalidDataException($"ERROR: JSON DOESNT CONTANE BACKROUND {BackroundName}");
-            }
-            Dictionary<string, object> BackroundNameData;
-            try
-            {
-                //idk a better way of checking its the correct type.
-                BackroundNameData = dict[BackroundName] as Dictionary<string, object>;
-            }
-            catch (Exception e)
-            {
-                throw new InvalidDataException("ERROR: BACKROUND DOESNT CONTANE A DICTIONARY"); 
-            }
-            if (!BackroundNameData.ContainsKey("frame"))
-            {
-                throw new InvalidDataException($"ERROR: BACKROUND DOESNT CONTANE \"frame\"");
-            }
-            try
-            {
-                Dictionary<string, object> BackroundFrame = BackroundNameData["frame"] as Dictionary<string, object>;
-                AbilityTextureMetaData metaData = new();
-                metaData.BackroundTopLeftCourner.x = (float)Convert.ToDouble(BackroundFrame["x"]) ;
-                metaData.BackroundTopLeftCourner.y = (float)Convert.ToDouble(BackroundFrame["y"]);
-                metaData.BackroundSize.x = (float)Convert.ToDouble(BackroundFrame["w"]);
-                metaData.BackroundSize.y = (float)Convert.ToDouble(BackroundFrame["h"]);
-                //remove the backround so the only one left is the icon data
-                dict.Remove(BackroundName);
-                var DictList = dict.ToList();
-                var IconKeyValuePair = DictList[0];
-                var IconData = IconKeyValuePair.Value as Dictionary<string, object>;
-                var IconFrame = IconData["frame"] as Dictionary<string, object>;
-                metaData.IconTopLeftCourner.x = (float)Convert.ToDouble(IconFrame["x"]);
-                metaData.IconTopLeftCourner.y = (float)Convert.ToDouble(IconFrame["y"]);
-                metaData.IconSize.x = (float)Convert.ToDouble(IconFrame["w"]);
-                metaData.IconSize.y = (float)Convert.ToDouble(IconFrame["h"]);
-                metaData.TotalSize = TotalSize;
-                Sprite.associatedGameObject.name = Sprite.name;
-                CustomAbilityTexstures.Add(Sprite.sprite.texture, metaData);
-                Sprites.Add(Sprite);
-            }
-            catch (Exception e)
-            {
-                throw new InvalidDataException($"ok you know what im not gonna make a difrent error for ever difrent way a json can be invalid. this json is invalid err {e}");
-            }
+            Sprite.associatedGameObject.name = Sprite.name;
+            CustomAbilityTexstures.Add(Sprite.sprite.texture);
+            Sprites.Add(Sprite);
 
+        }
+        public static Texture2D OverlayBackround(Texture2D ability,  Texture2D backround)
+        {
+            Color32[,] AbilityColorData2D = Texture2DTo2DArray(ability);
+            Color32[,] BackroundColorData2D = Texture2DTo2DArray(backround);
+            Vector2Int EndSize = new Vector2Int();
+            //calculate EndSize
+            if (ability.width > backround.width)
+            {
+                EndSize.x = ability.width;
+            }
+            else
+            {
+                EndSize.x = backround.width;
+            }
+            if (ability.height > backround.height)
+            {
+                EndSize.y = ability.height;
+            }
+            else
+            {
+                EndSize.y = backround.height;
+            }
+            Vector2Int Center = new Vector2Int(EndSize.x/2, EndSize.y/2);
+            Vector2Int AbilityBottomLeftCorner = new Vector2Int(Center.x - (ability.width / 2), Center.y - (ability.height / 2));
+            Vector2Int BackroundBottomLeftCorner = new Vector2Int(Center.x - (backround.width / 2), Center.y - (backround.height / 2));
+            //the colors should be fully transparent at the start
+            Color32[,] FinalImage = new Color32[EndSize.x, EndSize.y];
+            Color32[,] AbilityColorDataOffset = new Color32[EndSize.x, EndSize.y];
+            Color32[,] BackroundColorDataOffset = new Color32[EndSize.x, EndSize.y];
+            //offset the AbilityColorData2D into the AbilityColorDataOffset array. 
+            for (int x = 0; x < ability.width; x++)
+            {
+                for (int y = 0; y < ability.height; y++)
+                {
+                    AbilityColorDataOffset[x + AbilityBottomLeftCorner.x, y + AbilityBottomLeftCorner.y] = AbilityColorData2D[x, y];
+                }
+            }
+            //offset the BackroundColorData2D into the BackroundColorDataOffset array. 
+            for (int x = 0; x < backround.width; x++)
+            {
+                for (int y = 0; y < backround.height; y++)
+                {
+                    BackroundColorDataOffset[x + BackroundBottomLeftCorner.x, y + BackroundBottomLeftCorner.y] = BackroundColorData2D[x, y];
+                }
+            }
+            //ok now to finaly merge the 2 images
+            for (int x = 0; x < EndSize.x; x++)
+            {
+                for (int y = 0; y < EndSize.y; y++)
+                {
+                    //if the ability is transparent here replace it with the backround. outerwise replace it with the ability
+                    if (AbilityColorDataOffset[x, y].a == 255)
+                    {
+                        FinalImage[x, y] = AbilityColorDataOffset[x, y];
+                    }
+                    else
+                    {
+                        FinalImage[x, y] = BackroundColorDataOffset[x, y];
+                    }
+                }
+            }
+            return TwoArrayToTexture2D(FinalImage, EndSize.x, EndSize.y);
+        }
+        private static Color32[,] Texture2DTo2DArray(Texture2D texture)
+        {
+            var ColorData1D = texture.GetPixels32();
+            Color32[,] ColorData2D = new Color32[texture.width, texture.height];
+            for (int x = 0; x < texture.width; x++)
+            {
+                for (int y = 0; y < texture.height; y++)
+                {
+                    ColorData2D[x, y] = ColorData1D[x + y * texture.width];
+                }
+            }
+            return ColorData2D;
+        }
+        private static Texture2D TwoArrayToTexture2D(Color32[,] ColorData2D, int width, int height)
+        {
+            var ColorData1D = new Color32[width * height];
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    ColorData1D[x + y * width] = ColorData2D[x, y];
+                }
+            }
+            Texture2D copyTexture = new Texture2D(width, height, TextureFormat.ARGB32, false);
+            copyTexture.SetPixels32(ColorData1D);
+            copyTexture.Apply();
+            return copyTexture;
         }
     }
 }
