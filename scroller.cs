@@ -22,9 +22,12 @@ namespace AbilityApi
 
                 Transform transform = __instance.gameObject.transform;
                 Transform bgTransform = transform.Find("bg");
+
+                
+               
                 if (transform.Find("scroller_content") == null)
                 {
-                    
+
                     RectTransform mask = bgTransform.GetComponent<RectTransform>();
                     RectTransform scrollRect = __instance.gameObject.GetComponent<RectTransform>();
 
@@ -36,7 +39,7 @@ namespace AbilityApi
 
                     // Create content GameObject
                     GameObject content = new GameObject("scroller_content");
-                    RectTransform contentRectTransform = content.AddComponent<RectTransform>(); 
+                    RectTransform contentRectTransform = content.AddComponent<RectTransform>();
                     ScrollRect scroll = content.AddComponent<ScrollRect>();
 
                     content.transform.SetParent(transform, false);
@@ -57,12 +60,30 @@ namespace AbilityApi
                     scroll.content = contentRectTransform; // Reference the RectTransform of the content
                     scroll.viewport = transform.GetComponent<RectTransform>();
                     scroll.scrollSensitivity = -5;
-                    scroll.horizontal=false;
+                    scroll.horizontal = false;
+                    scroll.movementType = ScrollRect.MovementType.Elastic;
+                    scroll.elasticity = 1;
                 }
 
+            }
+        }
+        [HarmonyPatch(typeof(AbilityGrid), nameof(AbilityGrid.Update))]
+        public static class SelectionPatch
+        {
+            public static void Postfix(AbilityGrid __instance)
+            {
 
+                Transform transform = __instance.gameObject.transform;
+                GameObject selection = transform.Find("selectionCircle").gameObject;
+                // Set the selection's Y position
+                Vector3 newPosition = selection.transform.position;
+                newPosition.y = -650; //just hiding for now.
+                selection.transform.position = newPosition;
+                
 
             }
+
+
         }
     }
 }
