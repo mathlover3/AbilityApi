@@ -27,6 +27,7 @@ namespace AbilityApi.Internal
         public static InstantTestAbility testAbilityPrefab;
         public static Texture2D testAbilityTex;
         public static Sprite testSprite;
+        public static List<Texture2D> BackroundSprites = new();
         private void Awake()
         {
             Logger.LogInfo("Plugin AbilityApi is loaded!");
@@ -36,25 +37,23 @@ namespace AbilityApi.Internal
             Logger.LogInfo("harmany created");
             harmony.PatchAll();
             Logger.LogInfo("AbilityApi Patch Compleate!");
-            try
-            {
-                new Harmony("ArsenalOfBopls").PatchAll(Assembly.GetExecutingAssembly());
+            new Harmony("AbilityApi").PatchAll(Assembly.GetExecutingAssembly());
 
-                directoryToModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                //this name will automaticly be renamed to whatever the ability name is. 
-                testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("BlinkAbility");
-                testAbilityTex = Api.LoadImage(Path.Combine(directoryToModFolder, "texture.png"));
-                testSprite = Sprite.Create(testAbilityTex, new Rect(0f, 0f, testAbilityTex.width, testAbilityTex.height), new Vector2(0.5f, 0.5f));
-                //dont use the same name multiple times or it will break stuff
-                NamedSprite test = new NamedSprite("BlinkAbility", testSprite, testAbilityPrefab.gameObject, true);
-                string json = File.ReadAllText(Path.Combine(directoryToModFolder, "texture.json"));
-                Api.RegisterNamedSprites(test, json, "BaseCircle.png");
-            }
+            directoryToModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            //load backrounds
+            BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "BlueTeam.png")));
+            BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "OrangeTeam.png")));
+            BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "GreenTeam.png")));
+            BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "PinkTeam.png")));
+            //this name will automaticly be renamed to whatever the ability name is. 
+            testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("BlinkAbility");
+            testAbilityTex = Api.LoadImage(Path.Combine(directoryToModFolder, "BlinkTest.png"));
+            testAbilityTex = Api.OverlayBackround(testAbilityTex, BackroundSprites[0]);
+            testSprite = Sprite.Create(testAbilityTex, new Rect(0f, 0f, testAbilityTex.width, testAbilityTex.height), new Vector2(0.5f, 0.5f));
+            //dont use the same name multiple times or it will break stuff
+            NamedSprite test = new NamedSprite("BlinkAbility", testSprite, testAbilityPrefab.gameObject, true);
+            Api.RegisterNamedSprites(test);
 
-            catch (Exception ex)
-            {
-                Debug.LogException(ex);
-            }
         }
 
 
@@ -73,13 +72,14 @@ namespace AbilityApi.Internal
         {
             public static void Postfix(AbilityReadyIndicator __instance, ref Sprite sprite)
             {
-                if (Api.CustomAbilityTexstures.ContainsKey(sprite.texture))
+                if (Api.CustomAbilityTexstures.Contains(sprite.texture))
                 {
                     //basicly set the backround up
-                    AbilityTextureMetaData metadata = Api.CustomAbilityTexstures[sprite.texture];
-                    Vector2 CircleCenter = new Vector2(metadata.BackroundTopLeftCourner.x + (metadata.BackroundSize.x/2), metadata.BackroundTopLeftCourner.y + (metadata.BackroundSize.y / 2));
-                    Vector2 CircleCenterZeroToOne = CircleCenter / metadata.TotalSize;
-                    __instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1/ metadata.BackroundSize.x, 1 / metadata.BackroundSize.y, CircleCenterZeroToOne.x, CircleCenterZeroToOne.y));
+                    //AbilityTextureMetaData metadata = Api.CustomAbilityTexstures[sprite.texture];
+                    //Vector2 CircleCenter = new Vector2(metadata.BackroundTopLeftCourner.x + (metadata.BackroundSize.x/2), metadata.BackroundTopLeftCourner.y + (metadata.BackroundSize.y / 2));
+                    //Vector2 CircleCenterZeroToOne = CircleCenter / metadata.TotalSize;
+                    //__instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1/ metadata.BackroundSize.x, 1 / metadata.BackroundSize.y, CircleCenterZeroToOne.x, CircleCenterZeroToOne.y));
+                    __instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1, 1, 1 ,1));
                 }
 
                 else
