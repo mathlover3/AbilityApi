@@ -67,23 +67,5 @@ namespace AbilityApi
 
             }
         }
-        [HarmonyPatch(typeof(AbilityGrid), nameof(AbilityGrid.Update))]
-        public static class SelectionPatch
-        {
-            public static void Postfix(AbilityGrid __instance)
-            {
-
-                Transform transform = __instance.gameObject.transform;
-                GameObject selection = transform.Find("selectionCircle").gameObject;
-                // Set the selection's Y position
-                Vector3 newPosition = selection.transform.position;
-                newPosition.y = -650; //just hiding for now.
-                selection.transform.position = newPosition;
-                
-
-            }
-
-
-        }
     }
 }

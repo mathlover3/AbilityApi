@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using System.IO;
 using System.Drawing;
+using UnityEngine.SocialPlatforms;
 
 namespace AbilityApi
 {
@@ -116,24 +117,61 @@ namespace AbilityApi
                     BackroundColorDataOffset[x + BackroundBottomLeftCorner.x, y + BackroundBottomLeftCorner.y] = BackroundColorData2D[x, y];
                 }
             }
-            //ok now to finaly merge the 2 images
             for (int x = 0; x < EndSize.x; x++)
             {
                 for (int y = 0; y < EndSize.y; y++)
                 {
-                    //if the ability is transparent here replace it with the backround. outerwise replace it with the ability
-                    if (AbilityColorDataOffset[x, y].a == 255)
+                    Color32 abilityColor = AbilityColorDataOffset[x, y];
+                    Color32 backgroundColor = BackroundColorDataOffset[x, y];
+
+
+                    if (abilityColor.a >= 160)
                     {
-                        FinalImage[x, y] = AbilityColorDataOffset[x, y];
+                        FinalImage[x, y] = abilityColor;
                     }
+
+                    else if (backgroundColor.a > 50)
+                    {
+                        FinalImage[x, y] = MixColor32(backgroundColor, abilityColor);
+                    }
+
                     else
                     {
-                        FinalImage[x, y] = BackroundColorDataOffset[x, y];
+                        FinalImage[x, y] = backgroundColor;
                     }
                 }
             }
+
             return TwoArrayToTexture2D(FinalImage, EndSize.x, EndSize.y);
         }
+
+        private static Color32 MixColor32(Color32 background, Color32 overlay)
+        {
+            float backgroundAlpha = background.a / 255f; // uhhh convert to like.. 0->1 i guess.
+            float overlayAlpha = overlay.a / 255f; //uh the same thing^
+
+            // Calculate the combined alpha by adding the background alpha and the overlay alpha,
+            // scale the sum of both alpha values by the opacity of the foreground ( my brain hurts )
+            float combinedAlpha = backgroundAlpha + overlayAlpha * (1 - backgroundAlpha);
+            byte a = (byte)Mathf.Clamp(combinedAlpha * 255, 0, 255); // clamp lol
+
+            // Blend the color channels using the alpha values
+            // OKAY HERE WE GO WITH COMMENTS
+            // Am I really going to copy paste the comment three times?
+            // yes.
+            // yes I am. deal with it :bblox~3:
+
+            // Multiply the Red channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
+            byte r = (byte)((overlay.r * overlayAlpha + background.r * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
+            // Multiply the Green channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
+            byte g = (byte)((overlay.g * overlayAlpha + background.g * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
+            // Multiply the Blue channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
+            byte b = (byte)((overlay.b * overlayAlpha + background.b * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
+
+            return new Color32(r, g, b, a);
+        }
+
+
         private static Color32[,] Texture2DTo2DArray(Texture2D texture)
         {
             var ColorData1D = texture.GetPixels32();
