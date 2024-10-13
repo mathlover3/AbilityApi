@@ -48,11 +48,11 @@ namespace AbilityApi.Internal
             //this name will automaticly be renamed to whatever the ability name is. 
             testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("BlinkAbility");
             testAbilityTex = Api.LoadImage(Path.Combine(directoryToModFolder, "BlinkTest.png"));
-            testAbilityTex = Api.OverlayBackround(testAbilityTex, BackroundSprites[0]);
+            //testAbilityTex = Api.OverlayBackround(testAbilityTex, BackroundSprites[0]);
             testSprite = Sprite.Create(testAbilityTex, new Rect(0f, 0f, testAbilityTex.width, testAbilityTex.height), new Vector2(0.5f, 0.5f));
             //dont use the same name multiple times or it will break stuff
             NamedSprite test = new NamedSprite("BlinkAbility", testSprite, testAbilityPrefab.gameObject, true);
-            Api.RegisterNamedSprites(test);
+            Api.RegisterNamedSprites(test, true);
 
         }
 
@@ -79,7 +79,7 @@ namespace AbilityApi.Internal
                     //Vector2 CircleCenter = new Vector2(metadata.BackroundTopLeftCourner.x + (metadata.BackroundSize.x/2), metadata.BackroundTopLeftCourner.y + (metadata.BackroundSize.y / 2));
                     //Vector2 CircleCenterZeroToOne = CircleCenter / metadata.TotalSize;
                     //__instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1/ metadata.BackroundSize.x, 1 / metadata.BackroundSize.y, CircleCenterZeroToOne.x, CircleCenterZeroToOne.y));
-                    __instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1, 1, 1 ,1));
+                    __instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(0, 0, 0 ,0));
                 }
 
                 else
@@ -148,7 +148,6 @@ namespace AbilityApi.Internal
                 //add the sprites
                 if (__instance.AbilityIcons.sprites.Count == defaultAbilityCount)
                 {
-                    Debug.Log("adding mid ability select");
                     __instance.AbilityIcons.sprites.AddRange(Api.Sprites);
                     __instance.localAbilityIcons.sprites.AddRange(Api.Sprites);
                 }
@@ -203,13 +202,95 @@ namespace AbilityApi.Internal
                 }
             }
         }
-        [HarmonyPatch(typeof(SteamManager), nameof(SteamManager.ChangePlayerAbilites))]
-        public static class SteamManagerPatch2
+        [HarmonyPatch(typeof(CharacterSelectHandler_online), nameof(CharacterSelectHandler_online.InitPlayer))]
+        public static class CharacterSelectHandler_onlinePatch
         {
-            public static void Prefix(SteamManager __instance, Player player, byte ability1, byte ability2, byte ability3, int nrOfAbilities, NamedSpriteList abilityIcons)
+            public static Player playerToReturn;
+            public static bool Prefix(CharacterSelectHandler_online __instance, int id, byte color, byte team, byte ability1, byte ability2, byte ability3, int nrOfAbilities, PlayerColors playerColors)
             {
-                Debug.Log($"abilitys: {ability1}, {ability2}, {ability3}");
+                NamedSpriteList abilityIcons = SteamManager.instance.abilityIcons;
+                Player player = new Player();
+                player.Id = id;
+                player.Color = playerColors.playerColors[(int)color].playerMaterial;
+                player.Team = (int)team;
+                Debug.Log($"team is {team}");
+                if (nrOfAbilities > 0)
+                {
+                    if (Api.CustomAbilitySpritesWithBackrounds.ContainsKey(abilityIcons.sprites[(int)ability1]))
+                    {
+                        player.Abilities.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability1]][team].associatedGameObject);
+                        player.AbilityIcons.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability1]][team].sprite);
+                    }
+                    else
+                    {
+                        player.Abilities.Add(abilityIcons.sprites[(int)ability1].associatedGameObject);
+                        player.AbilityIcons.Add(abilityIcons.sprites[(int)ability1].sprite);
+                    }
+
+                }
+                if (nrOfAbilities > 1)
+                {
+                    if (Api.CustomAbilitySpritesWithBackrounds.ContainsKey(abilityIcons.sprites[(int)ability2]))
+                    {
+                        player.Abilities.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability2]][team].associatedGameObject);
+                        player.AbilityIcons.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability2]][team].sprite);
+                    }
+                    else
+                    {
+                        player.Abilities.Add(abilityIcons.sprites[(int)ability2].associatedGameObject);
+                        player.AbilityIcons.Add(abilityIcons.sprites[(int)ability2].sprite);
+                    }
+                }
+                if (nrOfAbilities > 2)
+                {
+                    if (Api.CustomAbilitySpritesWithBackrounds.ContainsKey(abilityIcons.sprites[(int)ability3]))
+                    {
+                        player.Abilities.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability3]][team].associatedGameObject);
+                        player.AbilityIcons.Add(Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[(int)ability3]][team].sprite);
+                    }
+                    else
+                    {
+                        player.Abilities.Add(abilityIcons.sprites[(int)ability3].associatedGameObject);
+                        player.AbilityIcons.Add(abilityIcons.sprites[(int)ability3].sprite);
+                    }
+                }
+                player.IsLocalPlayer = false;
+                playerToReturn = player;
+                return false;
+            }
+            public static void Postfix(CharacterSelectHandler_online __instance, ref Player __result)
+            {
+                __result = playerToReturn;
             }
         }
+        /*[HarmonyPatch(typeof(CharacterSelectHandler))]
+        public class CharacterSelectHandlerPatches
+        {
+            static FieldInfo f_Shakeable_Field = AccessTools.Field(typeof(Plugin), nameof(Plugin.shakableCamera));
+            static MethodInfo m_Find_Object_Of_Type = SymbolExtensions.GetMethodInfo(() => UnityEngine.Object.FindObjectOfType<ShakableCamera>());
+
+            [HarmonyPatch("TryStartGame_inner")]
+            [HarmonyTranspiler]
+            //make sure its run after any outer patches that might prefix and replace it. (namely mapmaker)
+            [HarmonyPriority(0)]
+            static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            {
+                var codes = new List<CodeInstruction>(instructions);
+                var found = false;
+                foreach (var instruction in instructions)
+                {
+                    if (instruction.Calls(m_Find_Object_Of_Type))
+                    {
+                        yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ldsfld, f_Shakeable_Field);
+                        found = true;
+                    }
+                    else { yield return instruction; }
+
+                }
+                if (found is false)
+                    Debug.LogError("error beam awake transpiler failed");
+
+            }
+        }*/
     }
-    }
+}

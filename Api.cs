@@ -7,6 +7,7 @@ using UnityEngine;
 using System.IO;
 using System.Drawing;
 using UnityEngine.SocialPlatforms;
+using AbilityApi.Internal;
 
 namespace AbilityApi
 {
@@ -22,6 +23,7 @@ namespace AbilityApi
         }
 
         public static List<Texture2D> CustomAbilityTexstures = new();
+        public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds = new();
         public static List<NamedSprite> Sprites = new();
         public static AbilityGrid abilityGrid;
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
@@ -58,18 +60,27 @@ namespace AbilityApi
         /// if the assosated gameobjects name isnt the same as the ability name it will be renamed. dont use the same assosated gameobject for multiple abilitys.
         /// </summary>
         /// <returns></returns>
-        public static void RegisterNamedSprites(NamedSprite Sprite)
+        public static void RegisterNamedSprites(NamedSprite namedSprite, bool IsOffensiveAbility)
         {
             foreach (NamedSprite sprite in Sprites)
             {
-                if (sprite.name == Sprite.name)
+                if (sprite.name == namedSprite.name)
                 {
-                    throw new Exception($"ERROR: ABILITY WITH NAME {Sprite.name} ALREADY EXSITS! NOT CREATING ABILITY!");
+                    throw new Exception($"ERROR: ABILITY WITH NAME {namedSprite.name} ALREADY EXSITS! NOT CREATING ABILITY!");
                 }
             }
-            Sprite.associatedGameObject.name = Sprite.name;
-            CustomAbilityTexstures.Add(Sprite.sprite.texture);
-            Sprites.Add(Sprite);
+            namedSprite.associatedGameObject.name = namedSprite.name;
+            CustomAbilityTexstures.Add(namedSprite.sprite.texture);
+            List<NamedSprite> AbilitysWithBackrounds = new List<NamedSprite>();
+            foreach (var backround in Plugin.BackroundSprites)
+            {
+                var TextureWithBackround = Api.OverlayBackround(namedSprite.sprite.texture, backround);
+                var SpriteWithBackround = Sprite.Create(TextureWithBackround, new Rect(0f, 0f, TextureWithBackround.width, TextureWithBackround.height), new Vector2(0.5f, 0.5f));
+                var NamedSpriteWithBackround = new NamedSprite(namedSprite.name, SpriteWithBackround, namedSprite.associatedGameObject, IsOffensiveAbility);
+                AbilitysWithBackrounds.Add(NamedSpriteWithBackround);
+            }
+            CustomAbilitySpritesWithBackrounds.Add(namedSprite, AbilitysWithBackrounds);
+            Sprites.Add(namedSprite);
 
         }
         public static Texture2D OverlayBackround(Texture2D ability,  Texture2D backround)
