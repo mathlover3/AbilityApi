@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System;
 using static AbilityApi.Api;
+using UnityEngine.SceneManagement;
 
 namespace AbilityApi.Internal
 {
@@ -263,34 +264,94 @@ namespace AbilityApi.Internal
                 __result = playerToReturn;
             }
         }
-        /*[HarmonyPatch(typeof(CharacterSelectHandler))]
-        public class CharacterSelectHandlerPatches
+        [HarmonyPatch(typeof(CharacterSelectHandler), nameof(CharacterSelectHandler.TryStartGame_inner))]
+        public static class CharacterSelectHandlerPatch
         {
-            static FieldInfo f_Shakeable_Field = AccessTools.Field(typeof(Plugin), nameof(Plugin.shakableCamera));
-            static MethodInfo m_Find_Object_Of_Type = SymbolExtensions.GetMethodInfo(() => UnityEngine.Object.FindObjectOfType<ShakableCamera>());
-
-            [HarmonyPatch("TryStartGame_inner")]
-            [HarmonyTranspiler]
-            //make sure its run after any outer patches that might prefix and replace it. (namely mapmaker)
-            [HarmonyPriority(0)]
-            static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            public static bool Prefix(CharacterSelectHandler __instance)
             {
-                var codes = new List<CodeInstruction>(instructions);
-                var found = false;
-                foreach (var instruction in instructions)
+                if (CharacterSelectHandler.startButtonAvailable && CharacterSelectHandler.allReadyForMoreThanOneFrame)
                 {
-                    if (instruction.Calls(m_Find_Object_Of_Type))
+                    AudioManager audioManager = AudioManager.Get();
+                    if (audioManager != null)
                     {
-                        yield return new CodeInstruction(System.Reflection.Emit.OpCodes.Ldsfld, f_Shakeable_Field);
-                        found = true;
+                        audioManager.Play("startGame");
                     }
-                    else { yield return instruction; }
-
+                    CharacterSelectHandler.startButtonAvailable = false;
+                    List<Player> list = PlayerHandler.Get().PlayerList();
+                    list.Clear();
+                    int num = 1;
+                    NamedSpriteList abilityIcons = SteamManager.instance.abilityIcons;
+                    for (int i = 0; i < __instance.characterSelectBoxes.Length; i++)
+                    {
+                        if (__instance.characterSelectBoxes[i].menuState == CharSelectMenu.ready)
+                        {
+                            PlayerInit playerInit = __instance.characterSelectBoxes[i].playerInit;
+                            Player player = new Player(num, playerInit.team);
+                            player.Color = __instance.playerColors[playerInit.color].playerMaterial;
+                            player.UsesKeyboardAndMouse = playerInit.usesKeyboardMouse;
+                            player.CanUseAbilities = true;
+                            player.inputDevice = playerInit.inputDevice;
+                            player.Abilities = new List<GameObject>(3);
+                            player.AbilityIcons = new List<Sprite>(3);
+                            player.Abilities.Add(abilityIcons.sprites[playerInit.ability0].associatedGameObject);
+                            //if its a custom ability then use the one that has the backround
+                            if (Api.Sprites.Contains(abilityIcons.sprites[playerInit.ability0]))
+                            {
+                                var AbilityWithBackroundsList = Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[playerInit.ability0]];
+                                player.AbilityIcons.Add(AbilityWithBackroundsList[player.Team].sprite);
+                            }
+                            else
+                            {
+                                //if its not a custom ability do it normaly
+                                player.AbilityIcons.Add(abilityIcons.sprites[playerInit.ability0].sprite);
+                            }
+                            
+                            Settings settings = Settings.Get();
+                            if (settings != null && settings.NumberOfAbilities > 1)
+                            {
+                                player.Abilities.Add(abilityIcons.sprites[playerInit.ability1].associatedGameObject);
+                                //if its a custom ability then use the one that has the backround
+                                if (Api.Sprites.Contains(abilityIcons.sprites[playerInit.ability1]))
+                                {
+                                    var AbilityWithBackroundsList = Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[playerInit.ability1]];
+                                    player.AbilityIcons.Add(AbilityWithBackroundsList[player.Team].sprite);
+                                }
+                                else
+                                {
+                                    //if its not a custom ability do it normaly
+                                    player.AbilityIcons.Add(abilityIcons.sprites[playerInit.ability1].sprite);
+                                }
+                            }
+                            Settings settings2 = Settings.Get();
+                            if (settings2 != null && settings2.NumberOfAbilities > 2)
+                            {
+                                player.Abilities.Add(abilityIcons.sprites[playerInit.ability2].associatedGameObject);
+                                //if its a custom ability then use the one that has the backround
+                                if (Api.Sprites.Contains(abilityIcons.sprites[playerInit.ability2]))
+                                {
+                                    var AbilityWithBackroundsList = Api.CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[playerInit.ability2]];
+                                    player.AbilityIcons.Add(AbilityWithBackroundsList[player.Team].sprite);
+                                }
+                                else
+                                {
+                                    //if its not a custom ability do it normaly
+                                    player.AbilityIcons.Add(abilityIcons.sprites[playerInit.ability2].sprite);
+                                }
+                            }
+                            player.CustomKeyBinding = playerInit.keybindOverride;
+                            num++;
+                            list.Add(player);
+                        }
+                    }
+                    GameSession.Init();
+                    SceneManager.LoadScene("Level1");
+                    if (!WinnerTriangleCanvas.HasBeenSpawned)
+                    {
+                        SceneManager.LoadScene("winnerTriangle", LoadSceneMode.Additive);
+                    }
                 }
-                if (found is false)
-                    Debug.LogError("error beam awake transpiler failed");
-
+                return false;
             }
-        }*/
+        }
     }
 }
