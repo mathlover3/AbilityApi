@@ -47,13 +47,13 @@ namespace AbilityApi.Internal
             BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "GreenTeam.png")));
             BackroundSprites.Add(Api.LoadImage(Path.Combine(directoryToModFolder, "PinkTeam.png")));
             //this name will automaticly be renamed to whatever the ability name is. 
-            testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("BlinkAbility");
+            /*testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("A Ability");
             testAbilityTex = Api.LoadImage(Path.Combine(directoryToModFolder, "BlinkTest.png"));
-            //testAbilityTex = Api.OverlayBackround(testAbilityTex, BackroundSprites[0]);
             testSprite = Sprite.Create(testAbilityTex, new Rect(0f, 0f, testAbilityTex.width, testAbilityTex.height), new Vector2(0.5f, 0.5f));
             //dont use the same name multiple times or it will break stuff
-            NamedSprite test = new NamedSprite("BlinkAbility", testSprite, testAbilityPrefab.gameObject, true);
-            Api.RegisterNamedSprites(test, true);
+            NamedSprite test = new NamedSprite("A Custom Ability", testSprite, testAbilityPrefab.gameObject, true);
+            Api.RegisterNamedSprites(test, true);*/
+            
 
         }
 

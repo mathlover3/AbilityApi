@@ -17,7 +17,7 @@ namespace AbilityApi
         {
             public static void Postfix(AbilityGrid __instance)
             {
-                /* ERWER's Code  */
+                // ERWER's Code  
                 // Set variables..
 
                 Transform transform = __instance.gameObject.transform;
