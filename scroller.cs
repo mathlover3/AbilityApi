@@ -48,10 +48,13 @@ namespace AbilityApi
                     GameObject content = new GameObject("scroller_content");
                     RectMask2D masker = mask_viewport.gameObject.AddComponent<RectMask2D>();
 
-                    masker.rectTransform.sizeDelta = new Vector2(mask.sizeDelta.x * 2, mask.sizeDelta.y);
+                    masker.rectTransform.sizeDelta = new Vector2(mask.sizeDelta.x * 2, mask.sizeDelta.y-110f);
                     masker.rectTransform.anchorMin = mask.anchorMin;
                     masker.rectTransform.anchorMax = mask.anchorMax;
                     masker.rectTransform.pivot = mask.pivot;
+
+                    Vector2 offset = new Vector2(0, -120); // slightly move down so it doesn't overlap the abiltiy name text.
+                    masker.rectTransform.anchoredPosition += offset;
 
 
                     RectTransform contentRectTransform = content.AddComponent<RectTransform>();
@@ -77,7 +80,7 @@ namespace AbilityApi
                     scroll.scrollSensitivity = -5;
                     scroll.horizontal = false;
                     scroll.movementType = ScrollRect.MovementType.Elastic;
-                    scroll.elasticity = 1;
+                    scroll.elasticity = 0.5f;
                 }
 
             }
