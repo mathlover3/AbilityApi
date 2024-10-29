@@ -21,8 +21,9 @@ namespace AbilityApi
                 // Set variables..
 
                 Transform transform = __instance.gameObject.transform;
-                Transform bgTransform = transform.Find("bg");
-
+                Transform bgTransform = transform.Find("border");
+                transform.Find("selectionCircle").gameObject.SetActive(false); // removes the circle lol.
+                /* fix this later, you'd need to offset the selection cirlce by using the scroll amount. (which is normalized) */
                 
                
                 if (transform.Find("scroller_content") == null)
@@ -39,6 +40,14 @@ namespace AbilityApi
 
                     // Create content GameObject
                     GameObject content = new GameObject("scroller_content");
+                    RectMask2D masker = scrollRect.gameObject.AddComponent<RectMask2D>();
+
+                    masker.rectTransform.sizeDelta = new Vector2(mask.sizeDelta.x * 2, mask.sizeDelta.y+13f);
+                    masker.rectTransform.anchorMin = mask.anchorMin;
+                    masker.rectTransform.anchorMax = mask.anchorMax;
+                    masker.rectTransform.pivot = mask.pivot;
+
+
                     RectTransform contentRectTransform = content.AddComponent<RectTransform>();
                     ScrollRect scroll = content.AddComponent<ScrollRect>();
 
