@@ -365,3 +365,5 @@ FodyWeavers.xsd
 *.csproj
 AbilityApi.csproj
 AbilityApi.csproj
+
+/lib/Assembly-CSharp_publicized.dll
