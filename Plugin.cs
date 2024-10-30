@@ -180,7 +180,7 @@ namespace AbilityApi.Internal
             }
         }
         [HarmonyPatch(typeof(SlimeController), nameof(SlimeController.Awake))]
-        public static class SlimeControllerPatch
+        public static class SlimeControllerAwakePatch
         {
             public static void Postfix(SlimeController __instance)
             {
@@ -189,6 +189,112 @@ namespace AbilityApi.Internal
                 {
                     __instance.abilityIconsFull.sprites.AddRange(Api.Sprites);
                 }
+            }
+        }
+        [HarmonyPatch(typeof(SlimeController), nameof(SlimeController.DropAbilities))]
+        public static class SlimeControllerDropAbilitiesPatch
+        {
+            public static bool Prefix(SlimeController __instance)
+            {
+                if (!GameSession.IsInitialized() || GameSessionHandler.HasGameEnded() || __instance.abilities.Count <= 0)
+                {
+                    return false;
+                }
+                PlayerHandler.Get().GetPlayer(__instance.playerNumber);
+                for (int i = 0; i < __instance.AbilityReadyIndicators.Length; i++)
+                {
+                    if (__instance.AbilityReadyIndicators[i] != null)
+                    {
+                        __instance.AbilityReadyIndicators[i].InstantlySyncTransform();
+                    }
+                }
+                int num = Settings.Get().NumberOfAbilities - 1;
+                while (num >= 0 && (num >= __instance.AbilityReadyIndicators.Length || __instance.AbilityReadyIndicators[num] == null))
+                {
+                    num--;
+                }
+                if (num < 0)
+                {
+                    return false;
+                }
+                Vec2 launchDirection = Vec2.NormalizedSafe(Vec2.up + new Vec2(Updater.RandomFix((Fix)(-0.3f), (Fix)0.3f), (Fix)0L));
+                DynamicAbilityPickup dynamicAbilityPickup = FixTransform.InstantiateFixed<DynamicAbilityPickup>(__instance.abilityPickupPrefab, __instance.body.position);
+                Sprite primarySprite = __instance.AbilityReadyIndicators[num].GetPrimarySprite();
+                NamedSprite namedSprite = new();
+                if (__instance.abilityIconsFull.IndexOf(primarySprite) != -1)
+                {
+                    namedSprite = __instance.abilityIconsFull.sprites[__instance.abilityIconsFull.IndexOf(primarySprite)];
+                    Debug.Log("droping normal ability");
+                }
+                else
+                {
+                    Debug.Log("droping custom ability");
+                    namedSprite = Api.CustomAbilitySpritesWithBackroundList.sprites[Api.CustomAbilitySpritesWithBackroundList.IndexOf(primarySprite)];
+                }
+                if (namedSprite.associatedGameObject == null)
+                {
+                    namedSprite = __instance.abilityIconsDemo.sprites[__instance.abilityIconsDemo.IndexOf(primarySprite)];
+                }
+                dynamicAbilityPickup.InitPickup(namedSprite.associatedGameObject, primarySprite, launchDirection);
+                return false;
+            }
+
+        }
+        [HarmonyPatch(typeof(PlayerCollision), nameof(PlayerCollision.SpawnClone))]
+        public static class PlayerCollisionPatch
+        {
+            public static bool Prefix(PlayerCollision __instance, Player player, SlimeController slimeContToRevive, Vec2 targetPosition)
+            {
+                return false;
+            }
+            public static void Postfix(PlayerCollision __instance, Player player, SlimeController slimeContToRevive, Vec2 targetPosition, ref SlimeController __result)
+            {
+                if (player.playersAndClonesStillAlive < Constants.MaxClones + 1)
+                {
+                    int playersAndClonesStillAlive = player.playersAndClonesStillAlive;
+                    player.playersAndClonesStillAlive = playersAndClonesStillAlive + 1;
+                    SlimeController slimeController = FixTransform.InstantiateFixed<SlimeController>(__instance.reviveEffectPrefab.emptyPlayerPrefab, targetPosition);
+                    slimeController.playerNumber = player.Id;
+                    slimeController.GetPlayerSprite().sprite = null;
+                    slimeController.GetPlayerSprite().material = player.Color;
+                    List<AbilityMonoBehaviour> list = new List<AbilityMonoBehaviour>();
+                    for (int i = 0; i < slimeContToRevive.abilities.Count; i++)
+                    {
+                        int index = slimeContToRevive.abilityIcons.IndexOf(slimeContToRevive.AbilityReadyIndicators[i].GetPrimarySprite());
+                        GameObject gameObject = null;
+                        if (index != -1)
+                        {
+                            gameObject = FixTransform.InstantiateFixed(slimeContToRevive.abilityIcons.sprites[index].associatedGameObject, Vec2.zero);
+                        }
+                        else
+                        {
+                            int index2 = Api.CustomAbilitySpritesWithBackroundList.IndexOf(slimeContToRevive.AbilityReadyIndicators[i].GetPrimarySprite());
+
+                            gameObject = FixTransform.InstantiateFixed(Api.CustomAbilitySpritesWithBackroundList.sprites[index2].associatedGameObject, Vec2.zero);
+                        }
+                        gameObject.gameObject.SetActive(false);
+                        list.Add(gameObject.GetComponent<AbilityMonoBehaviour>());
+                    }
+                    slimeController.abilities = list;
+                    AbilityReadyIndicator[] array = new AbilityReadyIndicator[3];
+                    for (int j = 0; j < slimeContToRevive.AbilityReadyIndicators.Length; j++)
+                    {
+                        if (!(slimeContToRevive.AbilityReadyIndicators[j] == null))
+                        {
+                            array[j] = UnityEngine.Object.Instantiate<GameObject>(__instance.reviveEffectPrefab.AbilityReadyIndicators[j]).GetComponent<AbilityReadyIndicator>();
+                            array[j].SetSprite(slimeContToRevive.AbilityReadyIndicators[j].GetPrimarySprite(), true);
+                            array[j].Init();
+                            array[j].SetColor(__instance.reviveEffectPrefab.teamColors.teamColors[player.Team].fill);
+                            array[j].GetComponent<FollowTransform>().Leader = slimeController.transform;
+                            array[j].gameObject.SetActive(false);
+                        }
+                    }
+                    slimeController.AbilityReadyIndicators = array;
+                    slimeController.PrepareToRevive(targetPosition);
+                    __result = slimeController;
+                    return;
+                }
+                __result = null;
             }
         }
         [HarmonyPatch(typeof(SteamManager), nameof(SteamManager.Awake))]

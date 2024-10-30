@@ -22,17 +22,14 @@ namespace AbilityApi
             public Vector2 IconSize { get; set; }
             public Vector2 TotalSize { get; set; }
         }
-
+      
         // Holds custom textures for abilities.
-        public static List<Texture2D> CustomAbilityTexstures { get; } = new();
-        // Maps abilities to lists of NamedSprites with backgrounds.
-        public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds { get; } = new();
-        // Stores individual NamedSprites for abilities.
-        public static List<NamedSprite> Sprites { get; } = new();
-        // Reference to the AbilityGrid instance used for displaying abilities.
-        public static AbilityGrid AbilityGrid { get; set; }
+        public static List<Texture2D> CustomAbilityTexstures = new();
+        public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds = new();
+        public static NamedSpriteList CustomAbilitySpritesWithBackroundList = new();
+        public static List<NamedSprite> Sprites = new();
+        public static AbilityGrid abilityGrid;
 
-        // Constructs a new instant ability of the specified type.
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
         {
             GameObject parent = new GameObject(name);
@@ -71,6 +68,12 @@ namespace AbilityApi
         public static void RegisterNamedSprites(NamedSprite namedSprite, bool isOffensiveAbility)
         {
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
+
+            if (CustomAbilitySpritesWithBackroundList.sprites == null)
+            {
+                CustomAbilitySpritesWithBackroundList.sprites = new();
+            }
+            foreach (NamedSprite sprite in Sprites)
             {
                 throw new Exception($"Error: Ability with the name {namedSprite.name} already exists, not creating ability!");
             }
@@ -82,10 +85,11 @@ namespace AbilityApi
             List<NamedSprite> abilitysWithBackrounds = new List<NamedSprite>();
             foreach (var backround in Plugin.BackroundSprites)
             {
-                var textureWithBackround = OverlayBackround(namedSprite.sprite.texture, backround);
-                var spriteWithBackround = Sprite.Create(textureWithBackround, new Rect(0f, 0f, textureWithBackround.width, textureWithBackround.height), new Vector2(0.5f, 0.5f));
-                var namedSpriteWithBackround = new NamedSprite(namedSprite.name, spriteWithBackround, namedSprite.associatedGameObject, isOffensiveAbility);
-                abilitysWithBackrounds.Add(namedSpriteWithBackround);
+                var TextureWithBackround = Api.OverlayBackround(namedSprite.sprite.texture, backround);
+                var SpriteWithBackround = Sprite.Create(TextureWithBackround, new Rect(0f, 0f, TextureWithBackround.width, TextureWithBackround.height), new Vector2(0.5f, 0.5f));
+                var NamedSpriteWithBackround = new NamedSprite(namedSprite.name, SpriteWithBackround, namedSprite.associatedGameObject, IsOffensiveAbility);
+                AbilitysWithBackrounds.Add(NamedSpriteWithBackround);
+                CustomAbilitySpritesWithBackroundList.sprites.Add(NamedSpriteWithBackround);
             }
 
             // Add the main sprite and its background variations to relevant lists.
