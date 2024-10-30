@@ -20,16 +20,23 @@ namespace AbilityApi
                 // ERWER's Code  
                 // Set variables..
 
-                Transform transform = __instance.gameObject.transform;
-                Transform bgTransform = transform.Find("bg");
+                GameObject mask_viewport = new GameObject("viewport_mask");
+                mask_viewport.AddComponent<RectTransform>();
 
+                Transform transform = __instance.gameObject.transform;
+
+                mask_viewport.transform.SetParent(transform, false);
+
+                Transform bgTransform = transform.Find("border");
+                transform.Find("selectionCircle").gameObject.SetActive(false); // removes the circle lol.
+                /* fix this later, you'd need to offset the selection cirlce by using the scroll amount. (which is normalized) */
                 
                
                 if (transform.Find("scroller_content") == null)
                 {
 
                     RectTransform mask = bgTransform.GetComponent<RectTransform>();
-                    RectTransform scrollRect = __instance.gameObject.GetComponent<RectTransform>();
+                    RectTransform scrollRect = /*__instance.gameObject*/mask_viewport.GetComponent<RectTransform>();
 
                     // Set the ScrollRect's RectTransform properties
                     scrollRect.sizeDelta = mask.sizeDelta;
@@ -39,10 +46,21 @@ namespace AbilityApi
 
                     // Create content GameObject
                     GameObject content = new GameObject("scroller_content");
+                    RectMask2D masker = mask_viewport.gameObject.AddComponent<RectMask2D>();
+
+                    masker.rectTransform.sizeDelta = new Vector2(mask.sizeDelta.x * 2, mask.sizeDelta.y-110f);
+                    masker.rectTransform.anchorMin = mask.anchorMin;
+                    masker.rectTransform.anchorMax = mask.anchorMax;
+                    masker.rectTransform.pivot = mask.pivot;
+
+                    Vector2 offset = new Vector2(0, -120); // slightly move down so it doesn't overlap the abiltiy name text.
+                    masker.rectTransform.anchoredPosition += offset;
+
+
                     RectTransform contentRectTransform = content.AddComponent<RectTransform>();
                     ScrollRect scroll = content.AddComponent<ScrollRect>();
 
-                    content.transform.SetParent(transform, false);
+                    content.transform.SetParent(mask_viewport.transform, false);
 
                     // Find grid entries and set their parent to content
                     var gridEntries = transform.GetComponentsInChildren<Transform>()
@@ -62,7 +80,7 @@ namespace AbilityApi
                     scroll.scrollSensitivity = -5;
                     scroll.horizontal = false;
                     scroll.movementType = ScrollRect.MovementType.Elastic;
-                    scroll.elasticity = 1;
+                    scroll.elasticity = 0.5f;
                 }
 
             }
