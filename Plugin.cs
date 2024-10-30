@@ -94,7 +94,7 @@ namespace AbilityApi.Internal
         {
             public static void Postfix(AbilityGrid __instance)
             {
-                Api.abilityGrid = __instance;
+                Api.AbilityGrid = __instance;
                 //add the sprites (idk why but awake is called multiple times here
                 if (__instance.abilityIcons.sprites.Count == defaultAbilityCount)
                 {

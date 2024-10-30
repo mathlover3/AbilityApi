@@ -7,6 +7,7 @@ using UnityEngine;
 using System.IO;
 using System.Drawing;
 using UnityEngine.SocialPlatforms;
+using AbilityApi.Internal;
 
 namespace AbilityApi
 {
@@ -146,6 +147,35 @@ namespace AbilityApi
             byte b = (byte)((overlay.b * overlayAlpha + background.b * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
 
             return new Color32(r, g, b, a);
+        }
+
+        private static Color32[,] Texture2DTo2DArray(Texture2D texture)
+        {
+            var ColorData1D = texture.GetPixels32();
+            Color32[,] ColorData2D = new Color32[texture.width, texture.height];
+            for (int x = 0; x < texture.width; x++)
+            {
+                for (int y = 0; y < texture.height; y++)
+                {
+                    ColorData2D[x, y] = ColorData1D[x + y * texture.width];
+                }
+            }
+            return ColorData2D;
+        }
+        private static Texture2D TwoArrayToTexture2D(Color32[,] ColorData2D, int width, int height)
+        {
+            var ColorData1D = new Color32[width * height];
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    ColorData1D[x + y * width] = ColorData2D[x, y];
+                }
+            }
+            Texture2D copyTexture = new Texture2D(width, height, TextureFormat.ARGB32, false);
+            copyTexture.SetPixels32(ColorData1D);
+            copyTexture.Apply();
+            return copyTexture;
         }
     }
 }
