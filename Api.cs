@@ -13,6 +13,7 @@ namespace AbilityApi
 {
     public class Api
     {
+        // Stores metadata related to ability textures, such as background and icon dimensions.
         public class AbilityTextureMetaData
         {
             public Vector2 BackroundTopLeftCourner { get; set; }
@@ -22,50 +23,56 @@ namespace AbilityApi
             public Vector2 TotalSize { get; set; }
         }
 
+        // Holds custom textures for abilities.
         public static List<Texture2D> CustomAbilityTexstures { get; } = new();
+        // Maps abilities to lists of NamedSprites with backgrounds.
         public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds { get; } = new();
+        // Stores individual NamedSprites for abilities.
         public static List<NamedSprite> Sprites { get; } = new();
+        // Reference to the AbilityGrid instance used for displaying abilities.
         public static AbilityGrid AbilityGrid { get; set; }
 
+        // Constructs a new instant ability of the specified type.
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
         {
             GameObject parent = new GameObject(name);
             GameObject.DontDestroyOnLoad(parent);
 
+            // Attach an InstantAbility component to the new GameObject.
             InstantAbility ability = parent.AddComponent<InstantAbility>();
-
-            parent.AddComponent<FixTransform>();
-            MonoUpdatable updatable = parent.AddComponent<T>();
+            parent.AddComponent<FixTransform>(); // Add transform fix component.
+            MonoUpdatable updatable = parent.AddComponent<T>(); // Attach the specified ability type.
 
             if (updatable == null)
             {
-                GameObject.Destroy(parent);
+                GameObject.Destroy(parent); // Destroy GameObject if type is invalid.
                 throw new MissingReferenceException("Invalid type was fed to ConstructInstantAbility");
             }
 
             return (T)updatable;
         }
 
+        // Loads an image from the provided path and returns it as a Texture2D.
         public static Texture2D LoadImage(string path)
         {
             byte[] data = File.ReadAllBytes(path);
-
             Texture2D tex = new Texture2D(1, 1);
             tex.LoadImage(data);
-
             return tex;
         }
 
+        // Registers a new NamedSprite, optionally as an offensive ability, and generates background overlays.
         public static void RegisterNamedSprites(NamedSprite namedSprite, bool isOffensiveAbility)
         {
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
             {
-                throw new Exception($"ERROR: ABILITY WITH NAME {namedSprite.name} ALREADY EXSITS! NOT CREATING ABILITY!");
+                throw new Exception($"Error: Ability with the name {namedSprite.name} already exists, not creating ability!");
             }
 
             namedSprite.associatedGameObject.name = namedSprite.name;
-            CustomAbilityTexstures.Add(namedSprite.sprite.texture);
+            CustomAbilityTexstures.Add(namedSprite.sprite.texture); // Add ability texture to custom textures list.
 
+            // Create overlayed sprites with each background.
             List<NamedSprite> abilitysWithBackrounds = new List<NamedSprite>();
             foreach (var backround in Plugin.BackroundSprites)
             {
@@ -75,15 +82,18 @@ namespace AbilityApi
                 abilitysWithBackrounds.Add(namedSpriteWithBackround);
             }
 
+            // Add the main sprite and its background variations to relevant lists.
             CustomAbilitySpritesWithBackrounds.Add(namedSprite, abilitysWithBackrounds);
             Sprites.Add(namedSprite);
         }
 
+        // Overlays the ability texture onto the background texture, returning a combined Texture2D.
         public static Texture2D OverlayBackround(Texture2D ability, Texture2D backround)
         {
             var abilityColorData2D = Texture2DTo2DArray(ability);
             var backroundColorData2D = Texture2DTo2DArray(backround);
 
+            // Determine final image dimensions and calculate overlay positions.
             var endSize = new Vector2Int(Math.Max(ability.width, backround.width), Math.Max(ability.height, backround.height));
             var center = new Vector2Int(endSize.x / 2, endSize.y / 2);
             var abilityBottomLeftCorner = new Vector2Int(center.x - ability.width / 2, center.y - ability.height / 2);
@@ -93,6 +103,7 @@ namespace AbilityApi
             var abilityColorDataOffset = new Color32[endSize.x, endSize.y];
             var backroundColorDataOffset = new Color32[endSize.x, endSize.y];
 
+            // Overlay the ability texture at its calculated position.
             for (int x = 0; x < ability.width; x++)
             {
                 for (int y = 0; y < ability.height; y++)
@@ -101,6 +112,7 @@ namespace AbilityApi
                 }
             }
 
+            // Overlay the background texture at its calculated position.
             for (int x = 0; x < backround.width; x++)
             {
                 for (int y = 0; y < backround.height; y++)
@@ -109,6 +121,7 @@ namespace AbilityApi
                 }
             }
 
+            // Combine colors, blending the ability over the background.
             for (int x = 0; x < endSize.x; x++)
             {
                 for (int y = 0; y < endSize.y; y++)
@@ -116,11 +129,11 @@ namespace AbilityApi
                     var abilityColor = abilityColorDataOffset[x, y];
                     var backgroundColor = backroundColorDataOffset[x, y];
 
-                    if (abilityColor.a >= 160)
+                    if (abilityColor.a >= 160) // Full opacity for ability pixels.
                     {
                         finalImage[x, y] = abilityColor;
                     }
-                    else if (backgroundColor.a > 50)
+                    else if (backgroundColor.a > 50) // Partial opacity blending.
                     {
                         finalImage[x, y] = MixColor32(backgroundColor, abilityColor);
                     }
@@ -134,11 +147,11 @@ namespace AbilityApi
             return TwoArrayToTexture2D(finalImage, endSize.x, endSize.y);
         }
 
+        // Blends two colors based on their alpha values.
         private static Color32 MixColor32(Color32 background, Color32 overlay)
         {
             float backgroundAlpha = background.a / 255f;
             float overlayAlpha = overlay.a / 255f;
-
             float combinedAlpha = backgroundAlpha + overlayAlpha * (1 - backgroundAlpha);
             byte a = (byte)Mathf.Clamp(combinedAlpha * 255, 0, 255);
 
@@ -149,6 +162,7 @@ namespace AbilityApi
             return new Color32(r, g, b, a);
         }
 
+        // Converts Texture2D to a 2D array of Color32 for manipulation.
         private static Color32[,] Texture2DTo2DArray(Texture2D texture)
         {
             var ColorData1D = texture.GetPixels32();
@@ -162,6 +176,8 @@ namespace AbilityApi
             }
             return ColorData2D;
         }
+
+        // Converts a 2D array of Color32 back to a Texture2D.
         private static Texture2D TwoArrayToTexture2D(Color32[,] ColorData2D, int width, int height)
         {
             var ColorData1D = new Color32[width * height];
@@ -179,4 +195,3 @@ namespace AbilityApi
         }
     }
 }
-
