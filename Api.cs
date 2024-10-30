@@ -24,6 +24,7 @@ namespace AbilityApi
 
         public static List<Texture2D> CustomAbilityTexstures = new();
         public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds = new();
+        public static NamedSpriteList CustomAbilitySpritesWithBackroundList = new();
         public static List<NamedSprite> Sprites = new();
         public static AbilityGrid abilityGrid;
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
@@ -62,6 +63,10 @@ namespace AbilityApi
         /// <returns></returns>
         public static void RegisterNamedSprites(NamedSprite namedSprite, bool IsOffensiveAbility)
         {
+            if (CustomAbilitySpritesWithBackroundList.sprites == null)
+            {
+                CustomAbilitySpritesWithBackroundList.sprites = new();
+            }
             foreach (NamedSprite sprite in Sprites)
             {
                 if (sprite.name == namedSprite.name)
@@ -78,8 +83,10 @@ namespace AbilityApi
                 var SpriteWithBackround = Sprite.Create(TextureWithBackround, new Rect(0f, 0f, TextureWithBackround.width, TextureWithBackround.height), new Vector2(0.5f, 0.5f));
                 var NamedSpriteWithBackround = new NamedSprite(namedSprite.name, SpriteWithBackround, namedSprite.associatedGameObject, IsOffensiveAbility);
                 AbilitysWithBackrounds.Add(NamedSpriteWithBackround);
+                CustomAbilitySpritesWithBackroundList.sprites.Add(NamedSpriteWithBackround);
             }
             CustomAbilitySpritesWithBackrounds.Add(namedSprite, AbilitysWithBackrounds);
+            
             Sprites.Add(namedSprite);
 
         }
