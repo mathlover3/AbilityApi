@@ -75,7 +75,14 @@
     </Reference>
   </ItemGroup>
   
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="taskkill /f /im &quot;BoplBattle.exe&quot; /t 2&gt;nul &amp; set errorlevel=0 &amp;&amp; copy &quot;$(TargetPath)&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BepInEx\plugins\AbilityApi&quot; &amp;&amp; copy &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BepInEx\plugins\AbilityApi&quot; &amp;&amp; start &quot;&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BoplBattle.exe&quot;" />
-  </Target>
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    
+    <!-- Command for Windows -->
+    <Exec Command="taskkill /f /im &quot;BoplBattle.exe&quot; /t 2&gt;nul &amp; set errorlevel=0 &amp;&amp; copy &quot;$(TargetPath)&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BepInEx\plugins\AbilityApi&quot; &amp;&amp; copy &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BepInEx\plugins\AbilityApi&quot; &amp;&amp; start &quot;&quot; &quot;C:\Program Files (x86)\Steam\steamapps\common\Bopl Battle\BoplBattle.exe&quot;" 
+            Condition="'$(OS)' == 'Windows_NT'" />
+
+    <!-- Command for Linux -->
+    <Exec Command="cp &quot;$(TargetPath)&quot; &quot;/home/kyles/.config/r2modmanPlus-local/BoplBattle/profiles/Ability API/BepInEx/plugins/Obtrust-Ability Api/&quot; &amp;&amp; cp &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;/home/kyles/.config/r2modmanPlus-local/BoplBattle/profiles/Ability API/BepInEx/plugins/Obtrust-Ability Api/&quot;" 
+            Condition="'$(OS)' != 'Windows_NT'" />
+    </Target>
 </Project>

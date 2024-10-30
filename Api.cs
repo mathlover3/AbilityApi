@@ -32,7 +32,7 @@ namespace AbilityApi
 
         public static T ConstructInstantAbility<T>(string name) where T : MonoUpdatable
         {
-            GameObject parent = new GameObject(name);
+            GameObject parent = new(name);
             GameObject.DontDestroyOnLoad(parent);
 
             // Attach an InstantAbility component to the new GameObject.
@@ -53,7 +53,7 @@ namespace AbilityApi
         public static Texture2D LoadImage(string path)
         {
             byte[] data = File.ReadAllBytes(path);
-            Texture2D tex = new Texture2D(1, 1);
+            Texture2D tex = new(1, 1);
             tex.LoadImage(data);
             return tex;
         }
@@ -65,7 +65,7 @@ namespace AbilityApi
         /// if the assosated gameobjects name isnt the same as the ability name it will be renamed. dont use the same assosated gameobject for multiple abilitys.
         /// </summary>
         /// <returns></returns>
-        public static void RegisterNamedSprites(NamedSprite namedSprite, bool isOffensiveAbility)
+        public static void RegisterNamedSprites(NamedSprite namedSprite, bool IsOffensiveAbility)
         {
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
 
@@ -82,7 +82,7 @@ namespace AbilityApi
             CustomAbilityTexstures.Add(namedSprite.sprite.texture); // Add ability texture to custom textures list.
 
             // Create overlayed sprites with each background.
-            List<NamedSprite> abilitysWithBackrounds = new List<NamedSprite>();
+            List<NamedSprite> AbilitysWithBackrounds = new List<NamedSprite>();
             foreach (var backround in Plugin.BackroundSprites)
             {
                 var TextureWithBackround = Api.OverlayBackround(namedSprite.sprite.texture, backround);
@@ -93,7 +93,7 @@ namespace AbilityApi
             }
 
             // Add the main sprite and its background variations to relevant lists.
-            CustomAbilitySpritesWithBackrounds.Add(namedSprite, abilitysWithBackrounds);
+            CustomAbilitySpritesWithBackrounds.Add(namedSprite, AbilitysWithBackrounds);
             Sprites.Add(namedSprite);
         }
 

@@ -10,7 +10,7 @@ using UnityEngine.Rendering;
 
 namespace AbilityApi
 {
-    internal class scroller
+    internal class Scroller
     {
         [HarmonyPatch(typeof(AbilityGrid), nameof(AbilityGrid.Awake))]
         public static class AbilityGridPatch
