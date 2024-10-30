@@ -61,7 +61,13 @@ namespace AbilityApi
             return tex;
         }
 
-        // Registers a new NamedSprite, optionally as an offensive ability, and generates background overlays.
+        /// <summary>
+        /// Adds your NamedSprites to the games many NamedSpriteLists that need them.
+        /// Sprite is the NamedSprite for your ability
+        /// if theres already a ability with the given name it errors out.
+        /// if the assosated gameobjects name isnt the same as the ability name it will be renamed. dont use the same assosated gameobject for multiple abilitys.
+        /// </summary>
+        /// <returns></returns>
         public static void RegisterNamedSprites(NamedSprite namedSprite, bool isOffensiveAbility)
         {
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
@@ -99,6 +105,7 @@ namespace AbilityApi
             var abilityBottomLeftCorner = new Vector2Int(center.x - ability.width / 2, center.y - ability.height / 2);
             var backroundBottomLeftCorner = new Vector2Int(center.x - backround.width / 2, center.y - backround.height / 2);
 
+            // Initialize the final image, and the colors should be fully transparent at the start
             var finalImage = new Color32[endSize.x, endSize.y];
             var abilityColorDataOffset = new Color32[endSize.x, endSize.y];
             var backroundColorDataOffset = new Color32[endSize.x, endSize.y];
@@ -150,13 +157,21 @@ namespace AbilityApi
         // Blends two colors based on their alpha values.
         private static Color32 MixColor32(Color32 background, Color32 overlay)
         {
+            // Calculate the combined alpha by adding the background alpha and the overlay alpha,
+            // scale the sum of both alpha values by the opacity of the foreground ( my brain hurts )
             float backgroundAlpha = background.a / 255f;
             float overlayAlpha = overlay.a / 255f;
             float combinedAlpha = backgroundAlpha + overlayAlpha * (1 - backgroundAlpha);
             byte a = (byte)Mathf.Clamp(combinedAlpha * 255, 0, 255);
 
+
+            // Multiply the Red channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
             byte r = (byte)((overlay.r * overlayAlpha + background.r * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
+            
+            // Multiply the Green channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
             byte g = (byte)((overlay.g * overlayAlpha + background.g * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
+
+            // Multiply the Blue channel's by their alpha channels, then multiply the sum by the opcaity of the background, and divide it by the combinedAlpha values.
             byte b = (byte)((overlay.b * overlayAlpha + background.b * backgroundAlpha * (1 - overlayAlpha)) / combinedAlpha);
 
             return new Color32(r, g, b, a);
