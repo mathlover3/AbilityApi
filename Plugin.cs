@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 
 namespace AbilityApi.Internal
 {
-    [BepInPlugin("com.David_Loves_JellyCar_Worlds.AbilityApi", "AbilityApi", "1.0.0")]
+    [BepInPlugin("com.AbilityAPITeam.AbilityAPI", "Ability API", "0.1.1")]
     public class Plugin : BaseUnityPlugin
     {
         public struct CircleEntry
