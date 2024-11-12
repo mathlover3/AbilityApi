@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,7 +26,8 @@ namespace AbilityApi
         // Holds custom textures for abilities.
         public static List<Texture2D> CustomAbilityTexstures = new();
         public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds = new();
-        public static NamedSpriteList CustomAbilitySpritesWithBackroundList = new();
+        //the correct way to create this
+        public static NamedSpriteList CustomAbilitySpritesWithBackroundList = ScriptableObject.CreateInstance<NamedSpriteList>();
         public static List<NamedSprite> Sprites = new();
         public static AbilityGrid abilityGrid;
 
@@ -67,6 +68,10 @@ namespace AbilityApi
         /// <returns></returns>
         public static void RegisterNamedSprites(NamedSprite namedSprite, bool IsOffensiveAbility)
         {
+            if (CustomAbilitySpritesWithBackroundList.sprites == null)
+            {
+                CustomAbilitySpritesWithBackroundList.sprites = new();
+            }
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
 
             if (CustomAbilitySpritesWithBackroundList.sprites == null)
