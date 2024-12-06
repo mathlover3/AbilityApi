@@ -8,11 +8,15 @@ using System.IO;
 using System.Drawing;
 using UnityEngine.SocialPlatforms;
 using AbilityApi.Internal;
+using System.Reflection;
+using BoplFixedMath;
+using Ability_Api;
 
 namespace AbilityApi
 {
     public class Api
     {
+        private static System.IO.Stream GetResourceStream(string namespaceName, string path) => Assembly.GetExecutingAssembly().GetManifestResourceStream($"{namespaceName}.{path}");
         // Stores metadata related to ability textures, such as background and icon dimensions.
         public class AbilityTextureMetaData
         {
@@ -28,6 +32,7 @@ namespace AbilityApi
         public static Dictionary<NamedSprite, List<NamedSprite>> CustomAbilitySpritesWithBackrounds = new();
         //the correct way to create this
         public static NamedSpriteList CustomAbilitySpritesWithBackroundList = ScriptableObject.CreateInstance<NamedSpriteList>();
+        public static NamedSpriteList CustomAbilitySpritesWithoutBackroundList = ScriptableObject.CreateInstance<NamedSpriteList>();
         public static List<NamedSprite> Sprites = new();
         public static AbilityGrid abilityGrid;
 
@@ -39,6 +44,7 @@ namespace AbilityApi
             // Attach an InstantAbility component to the new GameObject.
             InstantAbility ability = parent.AddComponent<InstantAbility>();
             parent.AddComponent<FixTransform>(); // Add transform fix component.
+            parent.AddComponent<DummyAbility>();
             MonoUpdatable updatable = parent.AddComponent<T>(); // Attach the specified ability type.
 
             if (updatable == null)
@@ -49,11 +55,97 @@ namespace AbilityApi
 
             return (T)updatable;
         }
+        public static T ConstructAbility<T>(string name, string namespaceName, string playerSpriteFileName) where T : MonoUpdatable
+        {
+            GameObject parent = new GameObject(name);
+            GameObject.DontDestroyOnLoad(parent);
+
+            Ability ability = parent.AddComponent<Ability>();
+
+            parent.AddComponent<FixTransform>();
+            parent.AddComponent<SpriteRenderer>();
+            Texture2D abilityTex = LoadImageFromResources(namespaceName, playerSpriteFileName);
+            var iconSprite = Sprite.Create(abilityTex, new Rect(0f, 0f, abilityTex.width, abilityTex.height), new Vector2(0.5f, 0.5f));
+            parent.GetComponent<SpriteRenderer>().sprite = iconSprite;
+            parent.GetComponent<SpriteRenderer>().enabled = false;
+            parent.AddComponent<PlayerBody>();
+            parent.AddComponent<DPhysicsBox>();
+            parent.AddComponent<PlayerCollision>();
+            parent.AddComponent<DummyAbility>();
+
+            MonoUpdatable updatable = parent.AddComponent<T>();
+
+            if (updatable == null)
+            {
+                GameObject.Destroy(parent);
+                throw new MissingReferenceException("Invalid type was fed to ConstructAbility");
+            }
+
+            return (T)updatable;
+        }
+        public static T ConstructGun<T>(string name, string namespaceName, string playerSpriteFileName, string bulletFileName, Fix cooldown, float bulletSpeed, float bulletGravity, string shootSoundEffect, float scale) where T : MonoUpdatable
+        {
+            GameObject parent = new GameObject(name);
+            GameObject.DontDestroyOnLoad(parent);
+
+            Ability ability = parent.AddComponent<Ability>();
+
+            parent.AddComponent<FixTransform>();
+            parent.AddComponent<SpriteRenderer>();
+            Texture2D abilityTex = LoadImageFromResources(namespaceName, playerSpriteFileName);
+            var iconSprite = Sprite.Create(abilityTex, new Rect(0f, 0f, abilityTex.width, abilityTex.height), new Vector2(0.5f, 0.5f));
+            parent.GetComponent<SpriteRenderer>().sprite = iconSprite;
+            parent.GetComponent<SpriteRenderer>().enabled = false;
+            parent.AddComponent<PlayerBody>();
+            parent.AddComponent<DPhysicsBox>();
+            parent.GetComponent<DPhysicsBox>().Scale = (Fix)scale;
+            parent.AddComponent<PlayerCollision>();
+            parent.AddComponent<DummyAbility>();
+
+
+            MonoUpdatable updatable = parent.AddComponent<T>();
+            
+            if (updatable == null)
+            {
+                GameObject.Destroy(parent);
+                throw new MissingReferenceException("Invalid type was fed to ConstructAbility");
+            }
+            GunAbility gunCode = parent.GetComponent<GunAbility>();
+            gunCode.nameSpaceName = namespaceName;
+            gunCode.bulletSprite = bulletFileName;
+            gunCode.gunSprite = playerSpriteFileName;
+            gunCode.SetCooldown(cooldown);
+            gunCode.bulletSpeed = bulletSpeed;
+            gunCode.bulletGravity = bulletGravity;
+            gunCode.shootSoundEffect = shootSoundEffect;
+
+            return (T)updatable;
+        }
 
         // Loads an image from the provided path and returns it as a Texture2D.
         public static Texture2D LoadImage(string path)
         {
             byte[] data = File.ReadAllBytes(path);
+            Texture2D tex = new(1, 1);
+            tex.LoadImage(data);
+            return tex;
+        }
+        private static byte[] ReadFully(Stream input)
+        {
+            byte[] buffer = new byte[16 * 1024];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                int read;
+                while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    ms.Write(buffer, 0, read);
+                }
+                return ms.ToArray();
+            }
+        }
+        public static Texture2D LoadImageFromResources(string namespaceName, string fileName)
+        {
+            byte[] data = ReadFully(GetResourceStream(namespaceName, fileName));
             Texture2D tex = new(1, 1);
             tex.LoadImage(data);
             return tex;
@@ -71,6 +163,10 @@ namespace AbilityApi
             if (CustomAbilitySpritesWithBackroundList.sprites == null)
             {
                 CustomAbilitySpritesWithBackroundList.sprites = new();
+            }
+            if (CustomAbilitySpritesWithoutBackroundList.sprites == null)
+            {
+                CustomAbilitySpritesWithoutBackroundList.sprites = new();
             }
             if (Sprites.Any(sprite => sprite.name == namedSprite.name))
 
@@ -95,6 +191,7 @@ namespace AbilityApi
                 var NamedSpriteWithBackround = new NamedSprite(namedSprite.name, SpriteWithBackround, namedSprite.associatedGameObject, IsOffensiveAbility);
                 AbilitysWithBackrounds.Add(NamedSpriteWithBackround);
                 CustomAbilitySpritesWithBackroundList.sprites.Add(NamedSpriteWithBackround);
+                CustomAbilitySpritesWithoutBackroundList.sprites.Add(namedSprite);
             }
 
             // Add the main sprite and its background variations to relevant lists.

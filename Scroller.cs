@@ -12,7 +12,7 @@ namespace AbilityApi
 {
     internal class Scroller
     {
-        [HarmonyPatch(typeof(AbilityGrid), nameof(AbilityGrid.Awake))]
+        [HarmonyPatch(typeof(AbilityGrid), "Awake")]
         public static class AbilityGridPatch
         {
             public static void Postfix(AbilityGrid __instance)

@@ -1,4 +1,4 @@
-using BepInEx;
+﻿using BepInEx;
 using BoplFixedMath;
 using HarmonyLib;
 using System.Reflection;
@@ -7,12 +7,17 @@ using System.Collections.Generic;
 using System.IO;
 using static AbilityApi.Api;
 using UnityEngine.SceneManagement;
+using Ability_Api;
+using UnityEngine.UIElements;
+using UnityEngine.InputSystem;
 
 namespace AbilityApi.Internal
 {
-    [BepInPlugin("com.AbilityAPITeam.AbilityAPI", "Ability API", "0.1.1")]
+    [BepInPlugin("com.AbilityAPITeam.AbilityAPI", "Ability API", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
+        GameObject BowObject;
+        public static BoplBody Arrow;
         public struct CircleEntry
         {
             public Sprite sprite;
@@ -21,30 +26,28 @@ namespace AbilityApi.Internal
         public static int defaultAbilityCount = 30;
         public static Vector4 defaultExtents = new(0.04882813f, 0.04882813f, 0.08300781f, 0.9287109f);
         public static string directoryToModFolder = "";
-        public static InstantTestAbility testAbilityPrefab;
+        public static GunAbility testAbilityPrefab;
         public static Texture2D testAbilityTex;
         public static Sprite testSprite;
         public static List<Texture2D> BackroundSprites = new();
+        public static bool hasDied = false;
         private void Awake()
         {
             Logger.LogInfo("Plugin AbilityApi is loaded!");
 
             Harmony harmony = new Harmony("com.David_Loves_JellyCar_Worlds.AbilityApi");
 
-            Logger.LogInfo("harmany created");
+            Logger.LogInfo("harmony created");
             harmony.PatchAll();
-            Logger.LogInfo("AbilityApi Patch Compleate!");
+            Logger.LogInfo("AbilityApi Patch Complete!");
             new Harmony("AbilityApi").PatchAll(Assembly.GetExecutingAssembly());
 
             directoryToModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-
             // Load backgrounds
-            string[] backroundFiles = Directory.GetFiles(Path.Combine(directoryToModFolder, "Backgrounds"));
-            foreach (string file in backroundFiles)
-            {
-                BackroundSprites.Add(LoadImage(file));
-            }
-
+            BackroundSprites.Add(LoadImageFromResources("Ability_Api", "BlueTeam.png"));
+            BackroundSprites.Add(LoadImageFromResources("Ability_Api", "OrangeTeam.png"));
+            BackroundSprites.Add(LoadImageFromResources("Ability_Api", "GreenTeam.png"));
+            BackroundSprites.Add(LoadImageFromResources("Ability_Api", "PinkTeam.png"));
             // This name will automaticly be renamed to whatever the ability name is. 
             /*testAbilityPrefab = Api.ConstructInstantAbility<InstantTestAbility>("A Ability");
             testAbilityTex = Api.LoadImage(Path.Combine(directoryToModFolder, "BlinkTest.png"));
@@ -52,7 +55,23 @@ namespace AbilityApi.Internal
             //dont use the same name multiple times or it will break stuff
             NamedSprite test = new NamedSprite("A Custom Ability", testSprite, testAbilityPrefab.gameObject, true);
             Api.RegisterNamedSprites(test, true);*/
-            
+            //GunAbilityTest gun = new GunAbilityTest();
+            //gun.SetUpGun();
+
+            GameObject[] array = Resources.FindObjectsOfTypeAll(typeof(GameObject)) as GameObject[];
+            GameObject[] array2 = array;
+
+            foreach (GameObject val2 in array2)
+            {
+                if (((UnityEngine.Object)val2).name == "Bow")
+                {
+                    BowObject = val2;
+                    break;
+                }
+            }
+            Component component = BowObject.GetComponent(typeof(BowTransform));
+            BowTransform obj = (BowTransform)(object)((component is BowTransform) ? component : null);
+            Arrow = (BoplBody)AccessTools.Field(typeof(BowTransform), "Arrow").GetValue(obj);
 
         }
 
@@ -70,7 +89,7 @@ namespace AbilityApi.Internal
         [HarmonyPatch(typeof(AbilityReadyIndicator), nameof(AbilityReadyIndicator.SetSprite))]
         public static class SpriteCirclePatch
         {
-            public static void Postfix(AbilityReadyIndicator __instance, ref Sprite sprite)
+            public static void Postfix(AbilityReadyIndicator __instance, ref Sprite sprite, ref SpriteRenderer ___spriteRen)
             {
                 if (CustomAbilityTexstures.Contains(sprite.texture))
                 {
@@ -79,16 +98,16 @@ namespace AbilityApi.Internal
                     //Vector2 CircleCenter = new Vector2(metadata.BackroundTopLeftCourner.x + (metadata.BackroundSize.x/2), metadata.BackroundTopLeftCourner.y + (metadata.BackroundSize.y / 2));
                     //Vector2 CircleCenterZeroToOne = CircleCenter / metadata.TotalSize;
                     //__instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(1/ metadata.BackroundSize.x, 1 / metadata.BackroundSize.y, CircleCenterZeroToOne.x, CircleCenterZeroToOne.y));
-                    __instance.spriteRen.material.SetVector("_CircleExtents", new Vector4(0, 0, 0 ,0));
+                    __instance.GetSpriteRen().material.SetVector("_CircleExtents", new Vector4(0, 0, 0, 0));
                 }
 
                 else
                 {
-                    __instance.spriteRen.material.SetVector("_CircleExtents", defaultExtents);
+                    __instance.GetSpriteRen().material.SetVector("_CircleExtents", defaultExtents);
                 }
             }
         }
-        [HarmonyPatch(typeof(AbilityGrid), nameof(AbilityGrid.Awake))]
+        [HarmonyPatch(typeof(AbilityGrid), "Awake")]
         public static class AbilityGridPatch
         {
             public static void Postfix(AbilityGrid __instance)
@@ -103,7 +122,7 @@ namespace AbilityApi.Internal
 
             }
         }
-        [HarmonyPatch(typeof(AchievementHandler), nameof(AchievementHandler.Awake))]
+        [HarmonyPatch(typeof(AchievementHandler), "Awake")]
         public static class AchievementHandlerPatch
         {
             public static void Postfix(AchievementHandler __instance)
@@ -115,7 +134,7 @@ namespace AbilityApi.Internal
                 }
             }
         }
-        [HarmonyPatch(typeof(CharacterStatsList), nameof(CharacterStatsList.TryStartNextLevel_online))]
+        [HarmonyPatch(typeof(CharacterStatsList), "TryStartNextLevel_online")]
         public static class CharacterStatsListPatch
         {
             public static void Prefix(CharacterStatsList __instance)
@@ -125,10 +144,10 @@ namespace AbilityApi.Internal
                 {
                     __instance.abilityIcons.sprites.AddRange(Sprites);
                 }
-                
+
             }
         }
-        [HarmonyPatch(typeof(DynamicAbilityPickup), nameof(DynamicAbilityPickup.Awake))]
+        [HarmonyPatch(typeof(DynamicAbilityPickup), "Awake")]
         public static class DynamicAbilityPickupPatch
         {
             public static void Postfix(DynamicAbilityPickup __instance)
@@ -140,21 +159,21 @@ namespace AbilityApi.Internal
                 }
             }
         }
-        [HarmonyPatch(typeof(MidGameAbilitySelect), nameof(MidGameAbilitySelect.Awake))]
+        [HarmonyPatch(typeof(MidGameAbilitySelect), "Awake")]
         public static class MidGameAbilitySelectPatch
         {
-            public static void Postfix(MidGameAbilitySelect __instance)
+            public static void Postfix(MidGameAbilitySelect __instance, ref NamedSpriteList ___localAbilityIcons)
             {
                 //add the sprites
                 if (__instance.AbilityIcons.sprites.Count == defaultAbilityCount)
                 {
                     __instance.AbilityIcons.sprites.AddRange(Sprites);
-                    __instance.localAbilityIcons.sprites.AddRange(Sprites);
+                    ___localAbilityIcons.sprites.AddRange(Sprites);
                 }
 
             }
         }
-        [HarmonyPatch(typeof(RandomAbility), nameof(RandomAbility.Awake))]
+        [HarmonyPatch(typeof(RandomAbility), "Awake")]
         public static class RandomAbilityPatch
         {
             public static void Postfix(RandomAbility __instance)
@@ -166,7 +185,7 @@ namespace AbilityApi.Internal
                 }
             }
         }
-        [HarmonyPatch(typeof(SelectAbility), nameof(SelectAbility.Awake))]
+        [HarmonyPatch(typeof(SelectAbility), "Awake")]
         public static class SelectAbilityPatch
         {
             public static void Postfix(SelectAbility __instance)
@@ -178,7 +197,7 @@ namespace AbilityApi.Internal
                 }
             }
         }
-        [HarmonyPatch(typeof(SlimeController), nameof(SlimeController.Awake))]
+        [HarmonyPatch(typeof(SlimeController), "Awake")]
         public static class SlimeControllerAwakePatch
         {
             public static void Postfix(SlimeController __instance)
@@ -190,15 +209,104 @@ namespace AbilityApi.Internal
                 }
             }
         }
+        [HarmonyPatch(typeof(SlimeController), nameof(SlimeController.AddAdditionalAbility))]
+        public class AddMoreAbilityPatch
+        {
+            public static bool Prefix(SlimeController __instance, Fix[] ___abilityCooldownTimers, AbilityMonoBehaviour ability, PlayerCollision ___playerCollision, Sprite indicatorSprite, GameObject abilityPrefab)
+            {
+                Debug.Log("Added Additional");
+                NamedSpriteList abilityIcons = SteamManager.instance.abilityIcons;
+                Player player = PlayerHandler.Get().GetPlayer(__instance.playerNumber);
+
+                if (__instance.abilities.Count == 3)
+                {
+                    __instance.abilities[2] = ability;
+                    PlayerHandler.Get().GetPlayer(__instance.playerNumber).CurrentAbilities[2] = abilityPrefab;
+                    //__instance.AbilityReadyIndicators[2].SetSprite(indicatorSprite, true);
+                    // If its a custom ability then use the one that has the backround
+                    if(ability.GetComponentInParent<DummyAbility>())
+                    {
+                        //var AbilityWithBackroundsList = CustomAbilitySpritesWithBackrounds[abilityIcons.sprites[___nextAbiltityToChangeOnPickup]];
+                        var TextureWithBackround = Api.OverlayBackround(indicatorSprite.texture, BackroundSprites[player.Team]);
+                        var SpriteWithBackround = Sprite.Create(TextureWithBackround, new Rect(0f, 0f, TextureWithBackround.width, TextureWithBackround.height), new Vector2(0.5f, 0.5f));
+                        __instance.AbilityReadyIndicators[2].SetSprite(SpriteWithBackround, true);
+                        Debug.Log("custom");
+                    }
+                    else
+                    {
+                        __instance.AbilityReadyIndicators[2].SetSprite(indicatorSprite, true);
+                    }
+                    __instance.AbilityReadyIndicators[2].ResetAnimation();
+                    ___abilityCooldownTimers[2] = (Fix)100000L;
+                }
+                else if (__instance.abilities.Count > 0 && __instance.AbilityReadyIndicators[0] != null)
+                {
+                    __instance.abilities.Add(ability);
+                    PlayerHandler.Get().GetPlayer(__instance.playerNumber).CurrentAbilities.Add(abilityPrefab);
+                    int num = __instance.abilities.Count - 1;
+                    if (num >= __instance.AbilityReadyIndicators.Length || __instance.AbilityReadyIndicators[num] == null)
+                    {
+                        GameObject original = ___playerCollision.reviveEffectPrefab.AbilityReadyIndicators[num];
+                        AbilityReadyIndicator[] array = new AbilityReadyIndicator[__instance.abilities.Count];
+                        for (int i = 0; i < num; i++)
+                        {
+                            array[i] = __instance.AbilityReadyIndicators[i];
+                        }
+                        __instance.AbilityReadyIndicators = array;
+                        __instance.AbilityReadyIndicators[num] = UnityEngine.Object.Instantiate<GameObject>(original).GetComponent<AbilityReadyIndicator>();
+                        __instance.AbilityReadyIndicators[num].SetSprite(indicatorSprite, true);
+                        __instance.AbilityReadyIndicators[num].Init();
+                        __instance.AbilityReadyIndicators[num].SetColor(___playerCollision.reviveEffectPrefab.teamColors.teamColors[player.Team].fill);
+                        __instance.AbilityReadyIndicators[num].GetComponent<FollowTransform>().Leader = __instance.transform;
+                    }
+                    __instance.AbilityReadyIndicators[num].SetSprite(indicatorSprite, true);
+                    __instance.AbilityReadyIndicators[num].ResetAnimation();
+                    ___abilityCooldownTimers[num] = (Fix)100000L;
+                    for (int j = 0; j < __instance.abilities.Count; j++)
+                    {
+                        if (__instance.abilities[j] == null || __instance.abilities[j].IsDestroyed)
+                        {
+                            return false;
+                        }
+                        __instance.AbilityReadyIndicators[j].gameObject.SetActive(true);
+                        __instance.AbilityReadyIndicators[j].InstantlySyncTransform();
+                    }
+                }
+                else
+                {
+                    GameObject gameObject = FixTransform.InstantiateFixed(abilityPrefab, Vec2.zero);
+                    gameObject.gameObject.SetActive(false);
+                    __instance.abilities = new List<AbilityMonoBehaviour>();
+                    __instance.abilities.Add(gameObject.GetComponent<AbilityMonoBehaviour>());
+                    AbilityReadyIndicator[] array2 = new AbilityReadyIndicator[1];
+                    GameObject original2 = ___playerCollision.reviveEffectPrefab.AbilityReadyIndicators[0];
+                    Player player2 = PlayerHandler.Get().GetPlayer(__instance.playerNumber);
+                    array2[0] = UnityEngine.Object.Instantiate<GameObject>(original2).GetComponent<AbilityReadyIndicator>();
+                    array2[0].SetSprite(indicatorSprite, true);
+                    array2[0].Init();
+                    array2[0].SetColor(___playerCollision.reviveEffectPrefab.teamColors.teamColors[player2.Team].fill);
+                    array2[0].GetComponent<FollowTransform>().Leader = __instance.transform;
+                    array2[0].gameObject.SetActive(true);
+                    array2[0].InstantlySyncTransform();
+                    ___abilityCooldownTimers[0] = (Fix)100L;
+                    __instance.AbilityReadyIndicators = array2;
+                }
+                AudioManager.Get().Play("abilityPickup");
+
+
+                return false;
+            }
+        }
         [HarmonyPatch(typeof(SlimeController), nameof(SlimeController.DropAbilities))]
         public static class SlimeControllerDropAbilitiesPatch
         {
-            public static bool Prefix(SlimeController __instance)
+            public static bool Prefix(SlimeController __instance, ref DynamicAbilityPickup ___abilityPickupPrefab)
             {
                 if (!GameSession.IsInitialized() || GameSessionHandler.HasGameEnded() || __instance.abilities.Count <= 0)
                 {
                     return false;
                 }
+                NamedSpriteList abilityIcons = SteamManager.instance.abilityIcons;
                 PlayerHandler.Get().GetPlayer(__instance.playerNumber);
                 for (int i = 0; i < __instance.AbilityReadyIndicators.Length; i++)
                 {
@@ -216,25 +324,40 @@ namespace AbilityApi.Internal
                 {
                     return false;
                 }
-                Vec2 launchDirection = Vec2.NormalizedSafe(Vec2.up + new Vec2(Updater.RandomFix((Fix)(-0.3f), (Fix)0.3f), (Fix)0L));
-                DynamicAbilityPickup dynamicAbilityPickup = FixTransform.InstantiateFixed<DynamicAbilityPickup>(__instance.abilityPickupPrefab, __instance.body.position);
-                Sprite primarySprite = __instance.AbilityReadyIndicators[num].GetPrimarySprite();
-                NamedSprite namedSprite = new();
-                if (__instance.abilityIconsFull.IndexOf(primarySprite) != -1)
+                
+                if(hasDied == false)
                 {
-                    namedSprite = __instance.abilityIconsFull.sprites[__instance.abilityIconsFull.IndexOf(primarySprite)];
-                    Debug.Log("droping normal ability");
+                    Vec2 launchDirection = Vec2.NormalizedSafe(Vec2.up + new Vec2(Updater.RandomFix((Fix)(-0.3f), (Fix)0.3f), (Fix)0L));
+                    DynamicAbilityPickup dynamicAbilityPickup = FixTransform.InstantiateFixed<DynamicAbilityPickup>(___abilityPickupPrefab, __instance.body.position);
+                    Sprite primarySprite = __instance.AbilityReadyIndicators[num].GetPrimarySprite();
+                    NamedSprite namedSprite = new();
+                    if (__instance.abilityIconsFull.IndexOf(primarySprite) != -1)
+                    {
+                        namedSprite = __instance.abilityIconsFull.sprites[__instance.abilityIconsFull.IndexOf(primarySprite)];
+                        Debug.Log("droping normal ability");
+                    }
+                    else
+                    {
+                        Debug.Log("Dropping custom ability");
+                        //namedSprite = abilityIcons.sprites[abilityIcons.IndexOf(primarySprite)];
+                        namedSprite = CustomAbilitySpritesWithBackroundList.sprites[CustomAbilitySpritesWithBackroundList.IndexOf(primarySprite)];
+                        primarySprite = CustomAbilitySpritesWithoutBackroundList.sprites[CustomAbilitySpritesWithBackroundList.IndexOf(primarySprite)].sprite;
+                    }
+                    if (namedSprite.associatedGameObject == null)
+                    {
+                        namedSprite = __instance.abilityIconsDemo.sprites[__instance.abilityIconsDemo.IndexOf(primarySprite)];
+                    }
+                    dynamicAbilityPickup.InitPickup(namedSprite.associatedGameObject, primarySprite, launchDirection);
+                }
+                if(hasDied)
+                {
+                    hasDied = false;
                 }
                 else
                 {
-                    Debug.Log("Dropping custom ability");
-                    namedSprite = CustomAbilitySpritesWithBackroundList.sprites[CustomAbilitySpritesWithBackroundList.IndexOf(primarySprite)];
+                    hasDied = true;
                 }
-                if (namedSprite.associatedGameObject == null)
-                {
-                    namedSprite = __instance.abilityIconsDemo.sprites[__instance.abilityIconsDemo.IndexOf(primarySprite)];
-                }
-                dynamicAbilityPickup.InitPickup(namedSprite.associatedGameObject, primarySprite, launchDirection);
+                
                 return false;
             }
 
@@ -251,6 +374,10 @@ namespace AbilityApi.Internal
                 if (player.playersAndClonesStillAlive < Constants.MaxClones + 1)
                 {
                     int playersAndClonesStillAlive = player.playersAndClonesStillAlive;
+                    if(!player.stillAliveThisRound)
+                    {
+                        return;
+                    }
                     player.playersAndClonesStillAlive = playersAndClonesStillAlive + 1;
                     SlimeController slimeController = FixTransform.InstantiateFixed<SlimeController>(__instance.reviveEffectPrefab.emptyPlayerPrefab, targetPosition);
                     slimeController.playerNumber = player.Id;
@@ -296,19 +423,40 @@ namespace AbilityApi.Internal
                 __result = null;
             }
         }
-        [HarmonyPatch(typeof(SteamManager), nameof(SteamManager.Awake))]
+        [HarmonyPatch(typeof(GameSessionHandler), "SpawnPlayers")]
+        public static class SpawnPlayerPatch
+        {
+            public static void Prefix()
+            {
+                hasDied = false;
+            }
+        }
+        [HarmonyPatch(typeof(PlayerCollision), nameof(PlayerCollision.killPlayer))]
+        public static class PlayerCollisionPatchOnKill
+        {
+            public static void Prefix(PlayerCollision __instance, IPlayerIdHolder ___playerIdHolder)
+            {
+                Player player = PlayerHandler.Get().GetPlayer(___playerIdHolder.GetPlayerId());
+                if(player.playersAndClonesStillAlive > 1)
+                {
+                    player.playersAndClonesStillAlive -= 1;
+                }
+                
+            }
+        }
+        [HarmonyPatch(typeof(SteamManager), "Awake")]
         public static class SteamManagerPatch
         {
-            public static void Postfix(SteamManager __instance)
+            public static void Postfix(SteamManager __instance, ref NamedSpriteList ___abilityIconsFull)
             {
                 // Add the sprites
-                if (__instance.abilityIconsFull.sprites.Count == defaultAbilityCount)
+                if (___abilityIconsFull.sprites.Count == defaultAbilityCount)
                 {
-                    __instance.abilityIconsFull.sprites.AddRange(Sprites);
+                    ___abilityIconsFull.sprites.AddRange(Sprites);
                 }
             }
         }
-        [HarmonyPatch(typeof(CharacterSelectHandler_online), nameof(CharacterSelectHandler_online.InitPlayer))]
+        [HarmonyPatch(typeof(CharacterSelectHandler_online), "InitPlayer")]
         public static class CharacterSelectHandler_onlinePatch
         {
             public static Player playerToReturn;
@@ -372,12 +520,26 @@ namespace AbilityApi.Internal
                 __result = playerToReturn;
             }
         }
-        [HarmonyPatch(typeof(CharacterSelectHandler), nameof(CharacterSelectHandler.TryStartGame_inner))]
+        [HarmonyPatch(typeof(Arrow), "OnCollide")]
+        public static class Arrow_OnCollide_Patch
+        {
+            public static bool Prefix(Arrow __instance)
+            {
+                if (__instance.gameObject.name == "bullet-api")
+                {
+                    Updater.DestroyFix(__instance.gameObject);
+                    return false;
+                }
+                return true;
+            }
+        }
+        
+        [HarmonyPatch(typeof(CharacterSelectHandler), "TryStartGame_inner")]
         public static class CharacterSelectHandlerPatch
         {
-            public static bool Prefix(CharacterSelectHandler __instance)
+            public static bool Prefix(CharacterSelectHandler __instance, ref bool ___allReadyForMoreThanOneFrame, ref PlayerColors ___playerColors)
             {
-                if (CharacterSelectHandler.startButtonAvailable && CharacterSelectHandler.allReadyForMoreThanOneFrame)
+                if (CharacterSelectHandler.startButtonAvailable && ___allReadyForMoreThanOneFrame)
                 {
                     AudioManager audioManager = AudioManager.Get();
                     if (audioManager != null)
@@ -391,7 +553,7 @@ namespace AbilityApi.Internal
                     // Create the player list
                     List<Player> list = PlayerHandler.Get().PlayerList();
                     list.Clear();
-                    
+
                     int num = 1;
                     NamedSpriteList abilityIcons = SteamManager.instance.abilityIcons;
                     for (int i = 0; i < __instance.characterSelectBoxes.Length; i++)
@@ -401,7 +563,7 @@ namespace AbilityApi.Internal
                             PlayerInit playerInit = __instance.characterSelectBoxes[i].playerInit;
                             Player player = new(num, playerInit.team)
                             {
-                                Color = __instance.playerColors[playerInit.color].playerMaterial,
+                                Color = ___playerColors[playerInit.color].playerMaterial,
                                 UsesKeyboardAndMouse = playerInit.usesKeyboardMouse,
                                 CanUseAbilities = true,
                                 inputDevice = playerInit.inputDevice,
@@ -410,7 +572,7 @@ namespace AbilityApi.Internal
                             };
 
                             player.Abilities.Add(abilityIcons.sprites[playerInit.ability0].associatedGameObject);
-                            
+
                             // If its a custom ability then use the one that has the backround
                             if (Sprites.Contains(abilityIcons.sprites[playerInit.ability0]))
                             {
@@ -422,7 +584,7 @@ namespace AbilityApi.Internal
                                 // If its not a custom ability do it normaly
                                 player.AbilityIcons.Add(abilityIcons.sprites[playerInit.ability0].sprite);
                             }
-                            
+
                             Settings settings = Settings.Get();
                             if (settings != null && settings.NumberOfAbilities > 1)
                             {
@@ -471,5 +633,26 @@ namespace AbilityApi.Internal
             }
         }
     }
-}
+    //public class GunAbilityTest : Gun
+    //{
+        //public override string abilityName => "Gun";
 
+        //public override string namespaceName => "Ability_Api";
+
+        //public override string playerInAbilitySpriteName => "gun.png";
+
+        //public override string abilityIconSpriteName => "AbilityIcon.png";
+
+        //public override string bulletSpriteName => "bullet.png";
+
+        //public override Fix cooldown => (Fix)10;
+
+        //public override float bulletSpeed => 55;
+
+        //public override float bulletGravity => 3;
+
+        //public override string shootSoundEffect => "explosion";
+
+        //public override float scale => 1.5f;
+    //}
+}
